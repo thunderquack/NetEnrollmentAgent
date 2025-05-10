@@ -8,6 +8,7 @@ class Program
         var config = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: false)
+            .AddJsonFile("appsettings.development.json", optional: true)
             .Build();
 
         var section = config.GetSection("CesEnrollment");
