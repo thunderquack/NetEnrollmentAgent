@@ -1,4 +1,5 @@
-﻿using System.Security;
+﻿using System;
+using System.Security;
 using System.Text;
 using System.Xml.Linq;
 
@@ -28,12 +29,18 @@ namespace ConsoleClient
 
         public async Task<byte[]> GetCertificateAsync(string csrBase64, string templateName)
         {
-            var soapEnvelope = $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<s:Envelope xmlns:s=""http://www.w3.org/2003/05/soap-envelope""
-            xmlns:a=""http://www.w3.org/2005/08/addressing""
+            string messageId = "urn:uuid:" + Guid.NewGuid().ToString();
+
+            var soapEnvelope = $@"""<?xml version=""1.0"" encoding=""utf-8""?>
+<s:Envelope xmlns:s=""http://www.w3.org/2003/05/soap-envelope"" 
+            xmlns:a=""http://www.w3.org/2005/08/addressing"" 
             xmlns:u=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"">
   <s:Header>
-    <a:Action s:mustUnderstand=""1"">http://schemas.microsoft.com/windows/pki/2009/01/enrollment/ISecurityTokenService/Submit</a:Action>
+    <a:Action s:mustUnderstand=""1"">http://schemas.microsoft.com/windows/pki/2009/01/enrollment/RST/wstep</a:Action>
+    <a:MessageID>{messageId}</a:MessageID>
+    <a:ReplyTo>
+      <a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
+    </a:ReplyTo>
     <a:To s:mustUnderstand=""1"">{uri}</a:To>
     <o:Security s:mustUnderstand=""1"" xmlns:o=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"">
       <o:UsernameToken>
@@ -42,16 +49,26 @@ namespace ConsoleClient
       </o:UsernameToken>
     </o:Security>
   </s:Header>
-  <s:Body>
-    <Submit xmlns=""http://schemas.microsoft.com/windows/pki/2009/01/enrollment"">
-      <request>
-        <CertificateRequest>{csrBase64}</CertificateRequest>
-        <RequestType>PKCS10</RequestType>
-        <CertificateTemplateName>{templateName}</CertificateTemplateName>
-      </request>
-    </Submit>
+  <s:Body xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
+    <RequestSecurityToken xmlns=""http://docs.oasis-open.org/ws-sx/ws-trust/200512"">
+      <TokenType>http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509v3</TokenType>
+      <RequestType>http://docs.oasis-open.org/ws-sx/ws-trust/200512/Issue</RequestType>
+      <BinarySecurityToken 
+        EncodingType=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary"" 
+        ValueType=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#PKCS10"" 
+        xmlns=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"">
+        {csrBase64}
+      </BinarySecurityToken>
+      <AdditionalContext xmlns=""http://schemas.microsoft.com/windows/pki/2009/01/enrollment"">
+        <ContextItem>
+          <ContextKey>CertificateTemplate</ContextKey>
+          <ContextValue>{templateName}</ContextValue>
+        </ContextItem>
+      </AdditionalContext>
+      <RequestID xmlns=""http://schemas.microsoft.com/windows/pki/2009/01/enrollment"" xsi:nil=""true""/>
+    </RequestSecurityToken>
   </s:Body>
-</s:Envelope>";
+</s:Envelope>""";
 
             var content = new StringContent(soapEnvelope, Encoding.UTF8, "application/soap+xml");
             var response = await httpClient.PostAsync(uri, content);
