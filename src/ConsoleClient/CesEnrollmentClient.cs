@@ -4,12 +4,27 @@ using System.Xml.Linq;
 
 namespace ConsoleClient
 {
-    public class CesEnrollmentClient(string uri, string username, string password)
+    public class CesEnrollmentClient
     {
-        private readonly string uri = uri ?? throw new ArgumentNullException(nameof(uri));
-        private readonly string username = username ?? throw new ArgumentNullException(nameof(username));
-        private readonly string password = password ?? throw new ArgumentNullException(nameof(password));
-        private readonly HttpClient httpClient = new HttpClient();
+        private readonly string uri;
+        private readonly string username;
+        private readonly string password;
+        private readonly HttpClient httpClient;
+
+        public CesEnrollmentClient(string uri, string username, string password)
+        {
+            this.uri = uri ?? throw new ArgumentNullException(nameof(uri));
+            this.username = username ?? throw new ArgumentNullException(nameof(username));
+            this.password = password ?? throw new ArgumentNullException(nameof(password));
+#if DEBUG
+            httpClient = new HttpClient(new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+            });
+#else
+            httpClient = new HttpClient();
+#endif
+        }
 
         public async Task<byte[]> GetCertificateAsync(string csrBase64, string templateName)
         {

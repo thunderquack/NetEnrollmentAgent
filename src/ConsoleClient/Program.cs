@@ -19,7 +19,7 @@ class Program
         string csrPath = section["CsrPath"];
         string outputPath = section["OutputPath"];
 
-        var csrBytes = File.ReadAllBytes(csrPath);
+        var csrBytes = new byte[] { 0x00, 0x01, 0x02 }; // File.ReadAllBytes(csrPath);
         var csrBase64 = Convert.ToBase64String(csrBytes);
 
         var client = new CesEnrollmentClient(uri, username, password);
