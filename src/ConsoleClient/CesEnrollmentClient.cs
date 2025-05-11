@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Net.Http.Headers;
+using System.Net.Http;
 using System.Security;
 using System.Text;
 using System.Xml.Linq;
@@ -25,13 +27,15 @@ namespace ConsoleClient
 #else
             httpClient = new HttpClient();
 #endif
+            var byteArray = Encoding.ASCII.GetBytes($"{username}:{password}");
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
         }
 
         public async Task<byte[]> GetCertificateAsync(string csrBase64, string templateName)
         {
             string messageId = "urn:uuid:" + Guid.NewGuid().ToString();
 
-            var soapEnvelope = $@"""<?xml version=""1.0"" encoding=""utf-8""?>
+            var soapEnvelope = $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <s:Envelope xmlns:s=""http://www.w3.org/2003/05/soap-envelope"" 
             xmlns:a=""http://www.w3.org/2005/08/addressing"" 
             xmlns:u=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"">
@@ -68,14 +72,16 @@ namespace ConsoleClient
       <RequestID xmlns=""http://schemas.microsoft.com/windows/pki/2009/01/enrollment"" xsi:nil=""true""/>
     </RequestSecurityToken>
   </s:Body>
-</s:Envelope>""";
+</s:Envelope>
+";
 
-            var content = new StringContent(soapEnvelope, Encoding.UTF8, "application/soap+xml");
+            var content = new StringContent(soapEnvelope, Encoding.UTF8, "application/soap+xml");            
             var response = await httpClient.PostAsync(uri, content);
             var resultXml = await response.Content.ReadAsStringAsync();
-
+            Console.WriteLine("Request to: " + uri);
             if (!response.IsSuccessStatusCode)
             {
+                Console.WriteLine("ResultXml to: " + resultXml);
                 throw new InvalidOperationException($"Server returned {response.StatusCode}: {resultXml}");
             }
 
