@@ -36,22 +36,14 @@ namespace ConsoleClient
             string messageId = "urn:uuid:" + Guid.NewGuid().ToString();
 
             var soapEnvelope = $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<s:Envelope xmlns:s=""http://www.w3.org/2003/05/soap-envelope"" 
-            xmlns:a=""http://www.w3.org/2005/08/addressing"" 
-            xmlns:u=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"">
+<s:Envelope xmlns:a=""http://www.w3.org/2005/08/addressing""
+xmlns:s=""http://www.w3.org/2003/05/soap-envelope"">
   <s:Header>
     <a:Action s:mustUnderstand=""1"">http://schemas.microsoft.com/windows/pki/2009/01/enrollment/RST/wstep</a:Action>
     <a:MessageID>{messageId}</a:MessageID>
     <a:ReplyTo>
       <a:Address>http://www.w3.org/2005/08/addressing/anonymous</a:Address>
     </a:ReplyTo>
-    <a:To s:mustUnderstand=""1"">{uri}</a:To>
-    <o:Security s:mustUnderstand=""1"" xmlns:o=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"">
-      <o:UsernameToken>
-        <o:Username>{SecurityElement.Escape(username)}</o:Username>
-        <o:Password>{SecurityElement.Escape(password)}</o:Password>
-      </o:UsernameToken>
-    </o:Security>
   </s:Header>
   <s:Body xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
     <RequestSecurityToken xmlns=""http://docs.oasis-open.org/ws-sx/ws-trust/200512"">
