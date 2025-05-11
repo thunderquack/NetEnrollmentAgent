@@ -52,11 +52,12 @@ namespace ConsoleClient
 
             var soapEnvelope = $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <ns0:Envelope
-xmlns:ns0=""http://www.w3.org/2003/05/soap-envelope"" 
-xmlns:ns1=""http://www.w3.org/2005/08/addressing"" 
-xmlns:ns3=""http://docs.oasis-open.org/ws-sx/ws-trust/200512"" 
-xmlns:ns4=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"" 
-xmlns:ns5=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"" 
+xmlns:ns0=""http://www.w3.org/2003/05/soap-envelope""
+xmlns:ns1=""http://www.w3.org/2005/08/addressing""
+xmlns:ns3=""http://docs.oasis-open.org/ws-sx/ws-trust/200512""
+xmlns:ns4=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd""
+xmlns:ns5=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd""
+xmlns:ns6=""http://schemas.xmlsoap.org/ws/2006/12/authorization""
 xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
 	<ns0:Header>
 		<ns1:Action ns0:mustUnderstand=""1"">http://schemas.microsoft.com/windows/pki/2009/01/enrollment/RST/wstep</ns1:Action>
@@ -69,6 +70,11 @@ xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
 			<ns3:RequestType>http://docs.oasis-open.org/ws-sx/ws-trust/200512/Issue</ns3:RequestType>
 			<ns4:BinarySecurityToken ValueType=""http://schemas.microsoft.com/windows/pki/2009/01/enrollment#PKCS10"" EncodingType=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary"" ns5:Id="""">{csrBase64}</ns4:BinarySecurityToken>
 		</ns3:RequestSecurityToken>
+        <ns6:AdditionalContext>
+            <ns6:ContextItem Name=""CertificateTemplate"">
+            <Value>{templateName}</Value>
+            </ns6:ContextItem>
+        </ns6:AdditionalContext>
 	</ns0:Body>
 </ns0:Envelope>
 ";
