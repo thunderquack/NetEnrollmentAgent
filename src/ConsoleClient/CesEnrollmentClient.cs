@@ -1,9 +1,7 @@
-﻿using System;
-using System.Net.Http.Headers;
-using System.Net.Http;
-using System.Security;
+﻿using System.Net.Http.Headers;
 using System.Text;
 using System.Xml.Linq;
+using System.Security.Cryptography.X509Certificates;
 
 namespace ConsoleClient
 {
@@ -22,13 +20,30 @@ namespace ConsoleClient
 #if DEBUG
             httpClient = new HttpClient(new HttpClientHandler
             {
-                ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+                ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true,
             });
 #else
             httpClient = new HttpClient();
 #endif
             var byteArray = Encoding.ASCII.GetBytes($"{username}:{password}");
             httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+        }
+
+        public CesEnrollmentClient(string uri, X509Certificate2 authCertificate)
+        {
+            this.uri = uri ?? throw new ArgumentNullException(nameof(uri));
+#if DEBUG
+            httpClient = new HttpClient(new HttpClientHandler
+            {
+                ClientCertificates = { authCertificate },
+                ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true,
+            });
+#else
+            httpClient = new HttpClient(new HttpClientHandler
+            {
+                ClientCertificates = { authCertificate },
+            });
+#endif
         }
 
         public async Task<byte[]> GetCertificateAsync(string csrBase64, string templateName)
