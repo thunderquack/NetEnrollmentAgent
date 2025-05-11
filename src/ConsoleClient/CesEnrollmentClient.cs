@@ -51,32 +51,21 @@ namespace ConsoleClient
             string messageId = "urn:uuid:" + Guid.NewGuid().ToString();
 
             var soapEnvelope = $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<ns0:Envelope
-xmlns:ns0=""http://www.w3.org/2003/05/soap-envelope""
-xmlns:ns1=""http://www.w3.org/2005/08/addressing""
-xmlns:ns3=""http://docs.oasis-open.org/ws-sx/ws-trust/200512""
-xmlns:ns4=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd""
-xmlns:ns5=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd""
-xmlns:ns6=""http://schemas.xmlsoap.org/ws/2006/12/authorization""
-xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
-	<ns0:Header>
-		<ns1:Action ns0:mustUnderstand=""1"">http://schemas.microsoft.com/windows/pki/2009/01/enrollment/RST/wstep</ns1:Action>
-		<ns1:MessageID>{messageId}</ns1:MessageID>
-		<ns1:To ns0:mustUnderstand=""1"">{uri}</ns1:To>
-	</ns0:Header>
-	<ns0:Body>
-		<ns3:RequestSecurityToken>
-			<ns3:TokenType>http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509v3</ns3:TokenType>
-			<ns3:RequestType>http://docs.oasis-open.org/ws-sx/ws-trust/200512/Issue</ns3:RequestType>
-			<ns4:BinarySecurityToken ValueType=""http://schemas.microsoft.com/windows/pki/2009/01/enrollment#PKCS10"" EncodingType=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary"" ns5:Id="""">{csrBase64}</ns4:BinarySecurityToken>
-            <ns6:AdditionalContext>
-                <ContextItem Name=""CertificateTemplate"">
-                    <Value>{templateName}</Value>
-                </ContextItem>
-            </ns6:AdditionalContext>
-		</ns3:RequestSecurityToken>
-	</ns0:Body>
-</ns0:Envelope>
+<s:Envelope xmlns:a=""http://www.w3.org/2005/08/addressing"" xmlns:s=""http://www.w3.org/2003/05/soap-envelope"">
+	<s:Header>
+		<a:Action s:mustUnderstand=""1"">http://schemas.microsoft.com/windows/pki/2009/01/enrollment/RST/wstep</a:Action>
+		<a:MessageID>{messageId}</a:MessageID>
+		<a:To s:mustUnderstand=""1"">{uri}</a:To>
+	</s:Header>
+	<s:Body>
+		<RequestSecurityToken PreferredLanguage=""en-GB"" xmlns=""http://docs.oasis-open.org/ws-sx/ws-trust/200512"">
+			<TokenType>http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509v3</TokenType>
+			<RequestType>http://docs.oasis-open.org/ws-sx/ws-trust/200512/Issue</RequestType>
+			<BinarySecurityToken ValueType=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#PKCS7"" EncodingType=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary"" a:Id="""" xmlns:a=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"" 
+             xmlns=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"">{csrBase64}</BinarySecurityToken>
+		</RequestSecurityToken>
+	</s:Body>
+</s:Envelope>
 ";
 
             var content = new StringContent(soapEnvelope, Encoding.UTF8, "application/soap+xml");            
