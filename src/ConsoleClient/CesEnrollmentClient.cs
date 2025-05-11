@@ -69,6 +69,11 @@ xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
 			<ns3:TokenType>http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509v3</ns3:TokenType>
 			<ns3:RequestType>http://docs.oasis-open.org/ws-sx/ws-trust/200512/Issue</ns3:RequestType>
 			<ns4:BinarySecurityToken ValueType=""http://schemas.microsoft.com/windows/pki/2009/01/enrollment#PKCS10"" EncodingType=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary"" ns5:Id="""">{csrBase64}</ns4:BinarySecurityToken>
+            <ns6:AdditionalContext>
+                <ContextItem Name=""CertificateTemplate"">
+                    <Value>{templateName}</Value>
+                </ContextItem>
+            </ns6:AdditionalContext>
 		</ns3:RequestSecurityToken>
 	</ns0:Body>
 </ns0:Envelope>
