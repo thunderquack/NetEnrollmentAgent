@@ -21,11 +21,10 @@ class Program
         string csrPath = section["CsrPath"];
         string outputPath = section["OutputPath"];
 
-        var csrBytes = new byte[] { 0x00, 0x01, 0x02 }; // File.ReadAllBytes(csrPath);
-        var csrBase64 = Convert.ToBase64String(csrBytes);
-        csrBase64 = GenerateCsrBase64("TestCommonName");
+        string csrBase64 = GenerateCsrBase64("TestCommonName");
 
-        var client = new CesEnrollmentClient(uri, username, password);
+        var client = new CesEnrollmentClient(uri, new X509Certificate2("ClientAuthentication.pfx", "12345678"));
+
         var cert = await client.GetCertificateAsync(csrBase64, templateName);
         File.WriteAllBytes(outputPath, cert);
 
