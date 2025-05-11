@@ -52,7 +52,7 @@ namespace ConsoleClient
 
             var soapEnvelope = $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <s:Envelope xmlns:a=""http://www.w3.org/2005/08/addressing""
-xmlns:s=""http://www.w3.org/2003/05/soap-envelope"">
+            xmlns:s=""http://www.w3.org/2003/05/soap-envelope"">
   <s:Header>
     <a:Action s:mustUnderstand=""1"">http://schemas.microsoft.com/windows/pki/2009/01/enrollment/RST/wstep</a:Action>
     <a:To s:mustUnderstand=""1"">{uri}</a:To>
@@ -65,10 +65,9 @@ xmlns:s=""http://www.w3.org/2003/05/soap-envelope"">
     <RequestSecurityToken xmlns=""http://docs.oasis-open.org/ws-sx/ws-trust/200512"">
       <TokenType>http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509v3</TokenType>
       <RequestType>http://docs.oasis-open.org/ws-sx/ws-trust/200512/Issue</RequestType>
-      <BinarySecurityToken 
-        EncodingType=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary"" 
-        ValueType=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#PKCS10"" 
-        xmlns=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"">{csrBase64}</BinarySecurityToken>
+      <BinarySecurityToken
+        EncodingType=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary""
+        ValueType=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#PKCS10"">{csrBase64}</BinarySecurityToken>
       <AdditionalContext xmlns=""http://schemas.microsoft.com/windows/pki/2009/01/enrollment"">
         <ContextItem>
           <ContextKey>CertificateTemplate</ContextKey>
