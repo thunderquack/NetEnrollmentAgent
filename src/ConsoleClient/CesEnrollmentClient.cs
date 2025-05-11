@@ -57,7 +57,7 @@ xmlns:ns1=""http://www.w3.org/2005/08/addressing""
 xmlns:ns3=""http://docs.oasis-open.org/ws-sx/ws-trust/200512""
 xmlns:ns4=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd""
 xmlns:ns5=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd""
-xmlns:ns6=""http://schemas.xmlsoap.org/ws/2006/12/authorization""
+xmlns:ns6=""http://schemas.microsoft.com/windows/pki/2009/01/enrollment""
 xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
 	<ns0:Header>
 		<ns1:Action ns0:mustUnderstand=""1"">http://schemas.microsoft.com/windows/pki/2009/01/enrollment/RST/wstep</ns1:Action>
@@ -83,10 +83,11 @@ xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
             var response = await httpClient.PostAsync(uri, content);
             var resultXml = await response.Content.ReadAsStringAsync();
             Console.WriteLine("Request to: " + uri);
+            Console.WriteLine("Request: " + soapEnvelope);
             if (!response.IsSuccessStatusCode)
             {
-                Console.WriteLine("ResultXml to: " + resultXml);
-                throw new InvalidOperationException($"Server returned {response.StatusCode}: {resultXml}");
+                Console.WriteLine("Result: " + resultXml);
+                Environment.Exit(1);
             }
 
             var doc = XDocument.Parse(resultXml);
