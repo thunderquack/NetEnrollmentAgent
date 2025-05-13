@@ -4,6 +4,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
 using System.Formats.Asn1;
 using System.Security.Cryptography.Pkcs;
+using System.Runtime.ConstrainedExecution;
 
 class Program
 {
@@ -29,9 +30,18 @@ class Program
 
         var agentCertificate = new X509Certificate2("AgentCertificate.pfx", "12345678");
         //csrBase64 = Convert.ToBase64String(CreateCmcRequest(csrBase64, agentCertificate));
-        csrBase64 = SignByAgent(csrBase64, templateName, agentCertificate);
+        //csrBase64 = SignByAgent(csrBase64, templateName, agentCertificate);
 
-        var cert = await client.GetCertificateAsync(csrBase64, templateName);
+        byte[] cmcBytes = GenerateCmcRequest(
+            subjectName: "TestCommonName",
+            templateName: "Web Server via Enrollment Agent",
+            majorVersion: 100,
+            minorVersion: 3,
+            agentCertificate: agentCertificate
+        );
+        string cmcBase64 = Convert.ToBase64String(cmcBytes);
+
+        var cert = await client.GetCertificateAsync(cmcBase64, templateName);
         File.WriteAllBytes(outputPath, cert);
 
         Console.WriteLine($"Certificate saved to {outputPath}");
@@ -86,7 +96,6 @@ class Program
         byte[] extensionBlock = BuildCertificateExtensionsWithTemplate("WebServerViaEnrollmentAgent", major: 100, minor: 3);
         var certRequestAttribute = new Pkcs9AttributeObject(new Oid("1.2.840.113549.1.9.14"), extensionBlock);
 
-
         var contentInfo = new ContentInfo(new Oid("1.3.6.1.5.5.7.12.2"), pkcs10Raw); // CMC request content type
 
         var signer = new CmsSigner(SubjectIdentifierType.SubjectKeyIdentifier, agentCert)
@@ -100,27 +109,79 @@ class Program
 
         return signedCms.Encode();
     }
+
     private static byte[] BuildCertificateExtensionsWithTemplate(string templateName, int major, int minor)
     {
-        var writer = new AsnWriter(AsnEncodingRules.DER);
-        writer.PushSequence(); // Entire Extensions sequence
-
-        // Write the CertificateTemplateInformation extension (OID 1.3.6.1.4.1.311.21.7)
         var extWriter = new AsnWriter(AsnEncodingRules.DER);
         extWriter.PushSequence();
-        extWriter.WriteCharacterString(UniversalTagNumber.UTF8String, templateName);
-        extWriter.WriteInteger(major);
-        extWriter.WriteInteger(minor);
+        extWriter.WriteObjectIdentifier("1.3.6.1.4.1.311.21.8.661424.4972531.1133714.6327609.4286482.11.12499863.8032338");
+        extWriter.WriteInteger(100);
+        extWriter.WriteInteger(3);
         extWriter.PopSequence();
-        byte[] templateValue = extWriter.Encode();
 
-        writer.PushSequence(); // Each extension is a SEQUENCE
-        writer.WriteObjectIdentifier("1.3.6.1.4.1.311.21.7"); // CertificateTemplateInformation
-        writer.WriteBoolean(false); // Not critical
-        writer.WriteOctetString(templateValue); // The actual value
-        writer.PopSequence(); // End of extension
+        return extWriter.Encode();
+    }
 
-        writer.PopSequence(); // End of Extensions
+    public static byte[] GenerateCmcRequest(string subjectName, string templateName, int majorVersion, int minorVersion, X509Certificate2 agentCertificate)
+    {
+        using RSA rsa = RSA.Create(2048);
+
+        var request = new CertificateRequest($"CN={subjectName}", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+        request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(
+            new OidCollection {
+                new Oid("1.3.6.1.5.5.7.3.1"), // Server Authentication
+                new Oid("1.3.6.1.5.5.7.3.2")  // Client Authentication
+            }, false));
+
+        request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature, false));
+
+        request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
+
+        byte[] csr = request.CreateSigningRequest();
+
+        // === extensions ===
+        byte[] extensionsBlock = BuildCertificateExtensionsWithTemplate(templateName, majorVersion, minorVersion);
+
+        // === extensions as CMC attribute ===
+        var attrExtensions = new Pkcs9AttributeObject("1.2.840.113549.1.9.14", extensionsBlock);
+
+        // === PKCS#10 in CMC SignedData ===
+        //ContentInfo contentInfo = new ContentInfo(new Oid("1.3.6.1.5.5.7.12.2"), csr);
+
+        var taggedCsr = WrapAsCmcTaggedRequest(csr, 1);
+        ContentInfo contentInfo = new ContentInfo(new Oid("1.3.6.1.5.5.7.12.2"), taggedCsr);
+
+        SignedCms signedCms = new SignedCms(contentInfo, detached: false);
+
+        CmsSigner signer = new CmsSigner(SubjectIdentifierType.IssuerAndSerialNumber, agentCertificate)
+        {
+            DigestAlgorithm = new Oid("2.16.840.1.101.3.4.2.1") // sha256
+        };
+
+        signer.SignedAttributes.Add(attrExtensions);
+        signedCms.ComputeSignature(signer);
+
+        return signedCms.Encode();
+    }
+
+    private static byte[] WrapAsCmcTaggedRequest(byte[] pkcs10, int bodyPartId)
+    {
+        var writer = new AsnWriter(AsnEncodingRules.DER);
+        writer.PushSequence(); // top SEQUENCE
+        writer.WriteInteger(bodyPartId); // BodyPartID = 1
+
+        // TaggedRequest ::= CHOICE { tcr [0] CertificationRequest }
+        var inner = new AsnWriter(AsnEncodingRules.DER);
+        inner.WriteEncodedValue(pkcs10);
+
+        var tagged = new AsnWriter(AsnEncodingRules.DER);
+        tagged.PushSequence(new Asn1Tag(TagClass.ContextSpecific, 0));
+        tagged.WriteEncodedValue(inner.Encode());
+        tagged.PopSequence();
+
+        writer.WriteEncodedValue(tagged.Encode());
+        writer.PopSequence();
         return writer.Encode();
     }
 }
