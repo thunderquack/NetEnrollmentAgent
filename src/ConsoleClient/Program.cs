@@ -1,10 +1,13 @@
 ﻿using ConsoleClient;
 using Microsoft.Extensions.Configuration;
-using System.Security.Cryptography.X509Certificates;
+using Org.BouncyCastle.Asn1.X509;
+using Org.BouncyCastle.Cms;
+using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Crypto.Operators;
+using Org.BouncyCastle.Pkcs;
+using Org.BouncyCastle.Security;
 using System.Security.Cryptography;
-using System.Formats.Asn1;
-using System.Security.Cryptography.Pkcs;
-using System.Runtime.ConstrainedExecution;
+using System.Security.Cryptography.X509Certificates;
 
 class Program
 {
@@ -29,12 +32,14 @@ class Program
         var client = new CesEnrollmentClient(uri, new X509Certificate2("ClientAuthentication.pfx", "12345678"));
 
         var agentCertificate = new X509Certificate2("AgentCertificate.pfx", "12345678");
-        //csrBase64 = Convert.ToBase64String(CreateCmcRequest(csrBase64, agentCertificate));
-        //csrBase64 = SignByAgent(csrBase64, templateName, agentCertificate);
+        //byte[] cmcRequest = GenerateSimpleRequest();
 
-        byte[] cmcRequest = GenerateCmcRequest("CN=TempSubject", templateName, 100, 3, agentCertificate);
+        var simpleRequest = GenerateSimpleRequest();
 
-        string cmcBase64 = Convert.ToBase64String(cmcRequest);
+        var cmc = CreateCsrPortable("CN=TestServer");
+        var pkcs7 = SignCsrAsPkcs7(cmc, agentCertificate);
+        var cmcBase64 = Convert.ToBase64String(pkcs7);
+
 
         var cert = await client.GetCertificateAsync(cmcBase64, templateName);
         File.WriteAllBytes(outputPath, cert);
@@ -42,30 +47,11 @@ class Program
         Console.WriteLine($"Certificate saved to {outputPath}");
     }
 
-    public static string GenerateCsrBase64(string commonName)
-    {
-        using RSA rsa = RSA.Create(4096);
-        var req = new CertificateRequest($"CN={commonName}", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-
-
-        var extWriter = new AsnWriter(AsnEncodingRules.DER);
-        extWriter.PushSequence();
-        extWriter.WriteObjectIdentifier("1.3.6.1.4.1.311.21.8.661424.4972531.1133714.6327609.4286482.11.12499863.8032338");
-        extWriter.WriteInteger(100);
-        extWriter.WriteInteger(3);
-        extWriter.PopSequence();
-
-        req.OtherRequestAttributes.Add(new Pkcs9AttributeObject(new Oid("1.3.6.1.4.1.311.21.7"), extWriter.Encode()));
-        
-        var csr = req.CreateSigningRequest();
-        return Convert.ToBase64String(csr);
-    }
-
-    public static byte[] GenerateCmcRequest(string subjectName, string templateName, int major, int minor, X509Certificate2 agentCertificate)
+    public static byte[] GenerateSimpleRequest()
     {
         using RSA rsa = RSA.Create(2048);
 
-        var req = new CertificateRequest(subjectName, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        var req = new CertificateRequest("CN=TestSubject", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 
         // Add standard extensions
         req.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature, false));
@@ -76,32 +62,84 @@ class Program
             }, false));
 
         byte[] pkcs10 = req.CreateSigningRequest();
-        byte[] tagged = WrapAsCmcTaggedRequest(pkcs10, 1);
-
-        var contentInfo = new ContentInfo(new Oid("1.3.6.1.5.5.7.12.2"), tagged);
-        var signedCms = new SignedCms(contentInfo, detached: false);
-
-        var signer = new CmsSigner(SubjectIdentifierType.IssuerAndSerialNumber, agentCertificate)
-        {
-            //DigestAlgorithm = new Oid("1.3.6.1.4.1.311.2.1.4") // ecdsa-with-SHA512
-        };
-
-        signedCms.ComputeSignature(signer);
-        return signedCms.Encode();
+        return pkcs10;
     }
 
-    private static byte[] WrapAsCmcTaggedRequest(byte[] pkcs10, int bodyPartId)
+    /// <summary>
+    /// Создает простой запрос на сертификат (CSR) с указанным субъектом, используя Portable Bouncy Castle.
+    /// </summary>
+    /// <param name="subjectName">Имя субъекта сертификата (например, "CN=TestSubject").</param>
+    /// <returns>Запрос на сертификат в формате PKCS#10.</returns>
+    public static Pkcs10CertificationRequest CreateCsrPortable(string subjectName)
     {
-        var writer = new AsnWriter(AsnEncodingRules.DER);
-        writer.PushSequence();
-        writer.WriteInteger(bodyPartId);
+        // Создаем пару ключей RSA
+        var keyPairGenerator = GeneratorUtilities.GetKeyPairGenerator("RSA");
+        keyPairGenerator.Init(new KeyGenerationParameters(new SecureRandom(), 2048));
+        AsymmetricCipherKeyPair keyPair = keyPairGenerator.GenerateKeyPair();
+        var publicKey = keyPair.Public;
+        var privateKey = keyPair.Private;
 
-        var tag = new Asn1Tag(TagClass.ContextSpecific, 0, isConstructed: true);
-        writer.PushSequence(tag);
-        writer.WriteEncodedValue(pkcs10);
-        writer.PopSequence(tag);
+        // Создаем имя субъекта
+        var subjectDn = new X509Name(subjectName);
 
-        writer.PopSequence();
-        return writer.Encode();
+        // Создаем запрос на сертификат
+        var request = new Pkcs10CertificationRequest(
+            "SHA256withRSA",
+            subjectDn,
+            publicKey,
+            null, // Атрибуты запроса (могут быть null для простого запроса)
+            privateKey
+        );
+
+        return request;
+    }
+
+    /// <summary>
+    /// Подписывает запрос на сертификат (CSR) сертификатом Enrollment Agent и формирует PKCS#7 Signed Data.
+    /// </summary>
+    /// <param name="csr">Запрос на сертификат (CSR) для подписи.</param>
+    /// <param name="signingCertificate">Сертификат Enrollment Agent для подписи.</param>
+    /// <returns>PKCS#7 Signed Data в виде массива байт.</returns>
+    public static byte[] SignCsrAsPkcs7(Pkcs10CertificationRequest csr, X509Certificate2 signingCertificate)
+    {
+        if (csr == null)
+        {
+            throw new ArgumentNullException(nameof(csr));
+        }
+
+        if (signingCertificate == null)
+        {
+            throw new ArgumentNullException(nameof(signingCertificate));
+        }
+
+        if (!signingCertificate.HasPrivateKey)
+        {
+            throw new ArgumentException("Сертификат Enrollment Agent не имеет приватного ключа.", nameof(signingCertificate));
+        }
+
+        try
+        {
+            // Создаем генератор PKCS#7 Signed Data
+            var generator = new CmsSignedDataGenerator();
+
+            // Добавляем подписывающий сертификат и его приватный ключ
+            var signerInfoGenerator = new SignerInfoGeneratorBuilder()
+                .Build(new Asn1SignatureFactory("SHA256withRSA", DotNetUtilities.GetRsaKeyPair(signingCertificate.GetRSAPrivateKey()).Private),
+                       new Org.BouncyCastle.X509.X509Certificate(signingCertificate.GetRawCertData()));
+            generator.AddSignerInfoGenerator(signerInfoGenerator);
+
+            // Конвертируем CSR в ContentInfo
+            var contentInfo = new CmsProcessableByteArray(csr.GetEncoded());
+
+            // Генерируем Signed Data
+            var signedData = generator.Generate(contentInfo, true); // true включает содержимое
+
+            return signedData.GetEncoded();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при создании PKCS#7 подписи: {ex.Message}");
+            return null;
+        }
     }
 }
