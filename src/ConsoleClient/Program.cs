@@ -8,7 +8,9 @@ using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Operators;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
+using Org.BouncyCastle.X509;
 using Org.BouncyCastle.X509.Store;
+using System.Collections;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -125,37 +127,33 @@ class Program
                 new DerInteger(100),
                 new DerInteger(3));
 
-            var dict = new Dictionary<DerObjectIdentifier, DerSequence>();
-            dict.Add(templateOid, templateValue);
-            var attrTable = new AttributeTable(dict);
+            var extensionRequestSequence = new DerSequence(
+                new DerSequence(
+                    new DerObjectIdentifier("1.3.6.1.4.1.311.21.7"),
+                    new DerOctetString(templateValue)
+                )
+            );
 
-            var signedAttrGenerator = new DefaultSignedAttributeTableGenerator(
-                new Org.BouncyCastle.Asn1.Cms.AttributeTable(new Dictionary<DerObjectIdentifier, object>
+            var attrSet = new Org.BouncyCastle.Asn1.Cms.AttributeTable(new Hashtable
+            {
                 {
-                    {
+                    PkcsObjectIdentifiers.Pkcs9AtExtensionRequest,
+                    new Org.BouncyCastle.Asn1.Cms.Attribute(
                         PkcsObjectIdentifiers.Pkcs9AtExtensionRequest,
-                        new DerSet(
-                            new DerSequence(
-                                new DerSequence(
-                                    new DerObjectIdentifier("1.3.6.1.4.1.311.21.7"),
-                                    new DerOctetString(
-                                        new DerSequence(
-                                            new DerObjectIdentifier("1.3.6.1.4.1.311.21.8.661424.4972531.1133714.6327609.4286482.11.12499863.8032338"),
-                                            new DerInteger(100),
-                                            new DerInteger(3)
-                                        )
-                                    )
-                                )
-                            )
-                        )
-                    }
-                }));
+                        new DerSet(extensionRequestSequence)
+                    )
+                }
+            });
+
+
+            var signedAttrGenerator = new DefaultSignedAttributeTableGenerator(attrSet);
 
             var signerInfoGenerator = new SignerInfoGeneratorBuilder()
-               .WithSignedAttributeGenerator(signedAttrGenerator)
-               .Build(new Asn1SignatureFactory("SHA256withRSA", keyPair.Private), bouncyCastleCert);
+                .WithSignedAttributeGenerator(signedAttrGenerator)
+                .Build(new Asn1SignatureFactory("SHA256withRSA", keyPair.Private), bouncyCastleCert);
 
             generator.AddSignerInfoGenerator(signerInfoGenerator);
+
             IX509Store certStore = X509StoreFactory.Create("CERTIFICATE/COLLECTION", new X509CollectionStoreParameters(new[] { bouncyCastleCert }));
             generator.AddCertificates(certStore);
 
