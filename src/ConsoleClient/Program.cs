@@ -115,7 +115,7 @@ class Program
                 )
             );
 
-            var attrSet = new Org.BouncyCastle.Asn1.Cms.AttributeTable(new Hashtable
+            var dict = new Dictionary<DerObjectIdentifier, Org.BouncyCastle.Asn1.Cms.Attribute>
             {
                 {
                     PkcsObjectIdentifiers.Pkcs9AtExtensionRequest,
@@ -124,7 +124,9 @@ class Program
                         new DerSet(extensionRequestSequence)
                     )
                 }
-            });
+            };
+
+            var attrSet = new Org.BouncyCastle.Asn1.Cms.AttributeTable(dict);
 
             var signedAttrGenerator = new DefaultSignedAttributeTableGenerator(attrSet);
 
