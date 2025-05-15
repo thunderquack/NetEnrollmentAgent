@@ -1,5 +1,7 @@
 ﻿using ConsoleClient;
 using Microsoft.Extensions.Configuration;
+using Org.BouncyCastle.Asn1;
+using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Cms;
 using Org.BouncyCastle.Crypto;
@@ -116,8 +118,42 @@ class Program
             RSAParameters rsaParams = rsa.ExportParameters(true);
             AsymmetricCipherKeyPair keyPair = DotNetUtilities.GetRsaKeyPair(rsaParams);
 
+            // Строим атрибут CertificateTemplate
+            var templateOid = new DerObjectIdentifier("1.3.6.1.4.1.311.21.7");
+            var templateValue = new DerSequence(
+                new DerObjectIdentifier("1.3.6.1.4.1.311.21.8.661424.4972531.1133714.6327609.4286482.11.12499863.8032338"),
+                new DerInteger(100),
+                new DerInteger(3));
+
+            var dict = new Dictionary<DerObjectIdentifier, DerSequence>();
+            dict.Add(templateOid, templateValue);
+            var attrTable = new AttributeTable(dict);
+
+            var signedAttrGenerator = new DefaultSignedAttributeTableGenerator(
+                new Org.BouncyCastle.Asn1.Cms.AttributeTable(new Dictionary<DerObjectIdentifier, object>
+                {
+                    {
+                        PkcsObjectIdentifiers.Pkcs9AtExtensionRequest,
+                        new DerSet(
+                            new DerSequence(
+                                new DerSequence(
+                                    new DerObjectIdentifier("1.3.6.1.4.1.311.21.7"),
+                                    new DerOctetString(
+                                        new DerSequence(
+                                            new DerObjectIdentifier("1.3.6.1.4.1.311.21.8.661424.4972531.1133714.6327609.4286482.11.12499863.8032338"),
+                                            new DerInteger(100),
+                                            new DerInteger(3)
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    }
+                }));
+
             var signerInfoGenerator = new SignerInfoGeneratorBuilder()
-                .Build(new Asn1SignatureFactory("SHA256withRSA", keyPair.Private), bouncyCastleCert);
+               .WithSignedAttributeGenerator(signedAttrGenerator)
+               .Build(new Asn1SignatureFactory("SHA256withRSA", keyPair.Private), bouncyCastleCert);
 
             generator.AddSignerInfoGenerator(signerInfoGenerator);
             IX509Store certStore = X509StoreFactory.Create("CERTIFICATE/COLLECTION", new X509CollectionStoreParameters(new[] { bouncyCastleCert }));
