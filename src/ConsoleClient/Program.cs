@@ -8,7 +8,6 @@ using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Operators;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
-using Org.BouncyCastle.X509;
 using Org.BouncyCastle.X509.Store;
 using System.Collections;
 using System.Security.Cryptography;
@@ -32,12 +31,9 @@ class Program
         string csrPath = section["CsrPath"];
         string outputPath = section["OutputPath"];
 
-        // string csrBase64 = GenerateCsrBase64("TestCommonName");
-
         var client = new CesEnrollmentClient(uri, new X509Certificate2("ClientAuthentication.pfx", "12345678"));
 
         var agentCertificate = new X509Certificate2("AgentCertificate.pfx", "12345678", X509KeyStorageFlags.Exportable);
-        //byte[] cmcRequest = GenerateSimpleRequest();
 
         var simpleRequest = GenerateSimpleRequest();
 
@@ -70,41 +66,27 @@ class Program
         return pkcs10;
     }
 
-    /// <summary>
-    /// Создает простой запрос на сертификат (CSR) с указанным субъектом, используя Portable Bouncy Castle.
-    /// </summary>
-    /// <param name="subjectName">Имя субъекта сертификата (например, "CN=TestSubject").</param>
-    /// <returns>Запрос на сертификат в формате PKCS#10.</returns>
     public static Pkcs10CertificationRequest CreateCsrPortable(string subjectName)
     {
-        // Создаем пару ключей RSA
         var keyPairGenerator = GeneratorUtilities.GetKeyPairGenerator("RSA");
         keyPairGenerator.Init(new KeyGenerationParameters(new SecureRandom(), 2048));
         AsymmetricCipherKeyPair keyPair = keyPairGenerator.GenerateKeyPair();
         var publicKey = keyPair.Public;
         var privateKey = keyPair.Private;
 
-        // Создаем имя субъекта
         var subjectDn = new X509Name(subjectName);
 
-        // Создаем запрос на сертификат
         var request = new Pkcs10CertificationRequest(
             "SHA256withRSA",
             subjectDn,
             publicKey,
-            null, // Атрибуты запроса (могут быть null для простого запроса)
+            null,
             privateKey
         );
 
         return request;
     }
 
-    /// <summary>
-    /// Подписывает запрос на сертификат (CSR) сертификатом Enrollment Agent и формирует PKCS#7 Signed Data.
-    /// </summary>
-    /// <param name="csr">Запрос на сертификат (CSR) для подписи.</param>
-    /// <param name="signingCertificate">Сертификат Enrollment Agent для подписи.</param>
-    /// <returns>PKCS#7 Signed Data в виде массива байт.</returns>
     public static byte[] SignCsrAsPkcs7(Pkcs10CertificationRequest csr, X509Certificate2 signingCertificate)
     {
         if (csr == null) throw new ArgumentNullException(nameof(csr));
@@ -120,7 +102,6 @@ class Program
             RSAParameters rsaParams = rsa.ExportParameters(true);
             AsymmetricCipherKeyPair keyPair = DotNetUtilities.GetRsaKeyPair(rsaParams);
 
-            // Строим атрибут CertificateTemplate
             var templateOid = new DerObjectIdentifier("1.3.6.1.4.1.311.21.7");
             var templateValue = new DerSequence(
                 new DerObjectIdentifier("1.3.6.1.4.1.311.21.8.661424.4972531.1133714.6327609.4286482.11.12499863.8032338"),
@@ -144,7 +125,6 @@ class Program
                     )
                 }
             });
-
 
             var signedAttrGenerator = new DefaultSignedAttributeTableGenerator(attrSet);
 
