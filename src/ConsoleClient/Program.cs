@@ -102,37 +102,25 @@ class Program
     /// <returns>PKCS#7 Signed Data в виде массива байт.</returns>
     public static byte[] SignCsrAsPkcs7(Pkcs10CertificationRequest csr, X509Certificate2 signingCertificate)
     {
-        if (csr == null)
-        {
-            throw new ArgumentNullException(nameof(csr));
-        }
-
-        if (signingCertificate == null)
-        {
-            throw new ArgumentNullException(nameof(signingCertificate));
-        }
-
-        if (!signingCertificate.HasPrivateKey)
-        {
-            throw new ArgumentException("Сертификат Enrollment Agent не имеет приватного ключа.", nameof(signingCertificate));
-        }
+        if (csr == null) throw new ArgumentNullException(nameof(csr));
+        if (signingCertificate == null) throw new ArgumentNullException(nameof(signingCertificate));
+        if (!signingCertificate.HasPrivateKey) throw new ArgumentException("Сертификат Enrollment Agent не имеет приватного ключа.", nameof(signingCertificate));
 
         try
         {
-            // Создаем генератор PKCS#7 Signed Data
             var generator = new CmsSignedDataGenerator();
+            var bouncyCastleCert = new Org.BouncyCastle.X509.X509Certificate(signingCertificate.GetRawCertData());
 
-            // Добавляем подписывающий сертификат и его приватный ключ
+            AsymmetricKeyParameter privateKeyParam = DotNetUtilities.GetKeyPair(signingCertificate.GetRSAPrivateKey()).Private;
+
             var signerInfoGenerator = new SignerInfoGeneratorBuilder()
-                .Build(new Asn1SignatureFactory("SHA256withRSA", DotNetUtilities.GetRsaKeyPair(signingCertificate.GetRSAPrivateKey()).Private),
-                       new Org.BouncyCastle.X509.X509Certificate(signingCertificate.GetRawCertData()));
+                .Build(new Asn1SignatureFactory("SHA256withRSA", privateKeyParam), bouncyCastleCert);
+
             generator.AddSignerInfoGenerator(signerInfoGenerator);
+            //generator.AddCertificates(bouncyCastleCert);
 
-            // Конвертируем CSR в ContentInfo
             var contentInfo = new CmsProcessableByteArray(csr.GetEncoded());
-
-            // Генерируем Signed Data
-            var signedData = generator.Generate(contentInfo, true); // true включает содержимое
+            var signedData = generator.Generate(contentInfo, true);
 
             return signedData.GetEncoded();
         }
