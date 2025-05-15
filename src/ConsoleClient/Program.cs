@@ -6,6 +6,7 @@ using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Operators;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
+using Org.BouncyCastle.X509.Store;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -31,7 +32,7 @@ class Program
 
         var client = new CesEnrollmentClient(uri, new X509Certificate2("ClientAuthentication.pfx", "12345678"));
 
-        var agentCertificate = new X509Certificate2("AgentCertificate.pfx", "12345678");
+        var agentCertificate = new X509Certificate2("AgentCertificate.pfx", "12345678", X509KeyStorageFlags.Exportable);
         //byte[] cmcRequest = GenerateSimpleRequest();
 
         var simpleRequest = GenerateSimpleRequest();
@@ -111,13 +112,16 @@ class Program
             var generator = new CmsSignedDataGenerator();
             var bouncyCastleCert = new Org.BouncyCastle.X509.X509Certificate(signingCertificate.GetRawCertData());
 
-            AsymmetricKeyParameter privateKeyParam = DotNetUtilities.GetKeyPair(signingCertificate.GetRSAPrivateKey()).Private;
+            RSA rsa = signingCertificate.GetRSAPrivateKey();
+            RSAParameters rsaParams = rsa.ExportParameters(true);
+            AsymmetricCipherKeyPair keyPair = DotNetUtilities.GetRsaKeyPair(rsaParams);
 
             var signerInfoGenerator = new SignerInfoGeneratorBuilder()
-                .Build(new Asn1SignatureFactory("SHA256withRSA", privateKeyParam), bouncyCastleCert);
+                .Build(new Asn1SignatureFactory("SHA256withRSA", keyPair.Private), bouncyCastleCert);
 
             generator.AddSignerInfoGenerator(signerInfoGenerator);
-            //generator.AddCertificates(bouncyCastleCert);
+            IX509Store certStore = X509StoreFactory.Create("CERTIFICATE/COLLECTION", new X509CollectionStoreParameters(new[] { bouncyCastleCert }));
+            generator.AddCertificates(certStore);
 
             var contentInfo = new CmsProcessableByteArray(csr.GetEncoded());
             var signedData = generator.Generate(contentInfo, true);
