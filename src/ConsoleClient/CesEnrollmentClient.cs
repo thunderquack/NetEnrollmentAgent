@@ -80,12 +80,18 @@ namespace ConsoleClient
             }
 
             var doc = XDocument.Parse(resultXml);
-            XNamespace ns = "http://schemas.microsoft.com/windows/pki/2009/01/enrollment";
-            var certBase64 = doc.Root?.Descendants(ns + "Certificate")?.FirstOrDefault()?.Value;
+            var certBase64 = doc
+                .Descendants()
+                .Where(e => e.Name.LocalName == "RequestedSecurityToken")
+                .Descendants()
+                .Where(e => e.Name.LocalName == "BinarySecurityToken")
+                .Select(e => e.Value)
+                .FirstOrDefault();
 
             if (string.IsNullOrEmpty(certBase64))
             {
-                throw new InvalidOperationException("Certificate not found in response.");
+                Console.WriteLine("Certificate not found in response.");
+                Environment.Exit(1);
             }
 
             return Convert.FromBase64String(certBase64);
