@@ -8,6 +8,7 @@ using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Operators;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
+using Org.BouncyCastle.Utilities.Collections;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -142,8 +143,7 @@ class Program
 
             generator.AddSignerInfoGenerator(signerInfoGenerator);
 
-            //IX509Store certStore = X509StoreFactory.Create("CERTIFICATE/COLLECTION", new X509CollectionStoreParameters(new[] { bouncyCastleCert }));
-            var certStore = Org.BouncyCastle.Utilities.Collections.CollectionUtilities.CreateStore([bouncyCastleCert]);
+            var certStore = CollectionUtilities.CreateStore([bouncyCastleCert]);
             generator.AddCertificates(certStore);
 
             var contentInfo = new CmsProcessableByteArray(csr.GetEncoded());
