@@ -118,8 +118,8 @@ class Program
                 new DerSequence(
                     new DerObjectIdentifier("1.3.6.1.4.1.311.21.7"),
                     new DerOctetString(templateValue)
-                )
-            );
+                ) as Asn1Encodable
+            ) as Asn1Encodable;
 
             IDictionary<DerObjectIdentifier, object> dict = new Dictionary<DerObjectIdentifier, object>
             {
