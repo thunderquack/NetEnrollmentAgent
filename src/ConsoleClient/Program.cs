@@ -8,8 +8,6 @@ using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Operators;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
-using Org.BouncyCastle.X509.Store;
-using System.Collections;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -41,6 +39,14 @@ class Program
         var pkcs7 = SignCsrAsPkcs7(cmc, agentCertificate);
         var cmcBase64 = Convert.ToBase64String(pkcs7);
 
+        Asn1InputStream asn1InputStream = new Asn1InputStream(pkcs7);
+        while (asn1InputStream.ReadObject() is Asn1Sequence sequence)
+        {
+            foreach (Asn1Encodable item in sequence)
+            {
+                Console.WriteLine(item.ToString());
+            }
+        }
 
         var cert = await client.GetCertificateAsync(cmcBase64, templateName);
         File.WriteAllBytes(outputPath, cert);
@@ -115,7 +121,7 @@ class Program
                 )
             );
 
-            var dict = new Dictionary<DerObjectIdentifier, Org.BouncyCastle.Asn1.Cms.Attribute>
+            IDictionary<DerObjectIdentifier, object> dict = new Dictionary<DerObjectIdentifier, object>
             {
                 {
                     PkcsObjectIdentifiers.Pkcs9AtExtensionRequest,
@@ -136,7 +142,8 @@ class Program
 
             generator.AddSignerInfoGenerator(signerInfoGenerator);
 
-            IX509Store certStore = X509StoreFactory.Create("CERTIFICATE/COLLECTION", new X509CollectionStoreParameters(new[] { bouncyCastleCert }));
+            //IX509Store certStore = X509StoreFactory.Create("CERTIFICATE/COLLECTION", new X509CollectionStoreParameters(new[] { bouncyCastleCert }));
+            var certStore = Org.BouncyCastle.Utilities.Collections.CollectionUtilities.CreateStore([bouncyCastleCert]);
             generator.AddCertificates(certStore);
 
             var contentInfo = new CmsProcessableByteArray(csr.GetEncoded());
