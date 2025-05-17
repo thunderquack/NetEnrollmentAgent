@@ -44,7 +44,7 @@ class Program
         {
             foreach (Asn1Encodable item in sequence)
             {
-                Console.WriteLine(item.ToString());
+                // Console.WriteLine(item.ToString());
             }
         }
 
